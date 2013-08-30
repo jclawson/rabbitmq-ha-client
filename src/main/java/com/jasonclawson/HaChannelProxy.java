@@ -48,7 +48,6 @@ public class HaChannelProxy implements InvocationHandler {
     private final ConcurrentHashMap<Consumer, HaConsumerProxy> consumerProxies = new ConcurrentHashMap<Consumer, HaConsumerProxy>();
     private final Map<Method, Object[]> callsToReplay = new LinkedHashMap<Method, Object[]>();
     
-	private final BooleanReentrantLatch latch = new BooleanReentrantLatch();
 	private final HaConnectionProxy haConnection;
 	private volatile Channel channelDelegate;
 	private volatile long connectionId;
@@ -117,14 +116,6 @@ public class HaChannelProxy implements InvocationHandler {
 			consumer.reconsume();
 		}
 
-	}
-
-	protected void closeLatch() {
-		latch.close();
-	}
-
-	protected void openLatch() {
-		latch.open();
 	}
 
 
@@ -223,7 +214,6 @@ public class HaChannelProxy implements InvocationHandler {
 
 	public void askConnectionToReconnect() throws InterruptedException {
 		long currentConnectionId = this.connectionId;
-		latch.waitUntilOpen(); //if the latch is closed... wait until its open
 		haConnection.reconnect(currentConnectionId); //then try and reconnect
 	}
 }

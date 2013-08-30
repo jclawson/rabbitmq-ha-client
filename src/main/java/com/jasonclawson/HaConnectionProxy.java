@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class HaConnectionProxy implements InvocationHandler {
 	private final Address[] addresses;
 	private Connection delegateConnection;
 	private final Set<HaChannelProxy> haChannels;
-	private final ReentrantReadWriteLock reconnectLock;
+	private final ReentrantLock reconnectLock;
 	private final HaConnectionFactory factory;
 	private final ExecutorService executor;
 	
@@ -41,14 +41,12 @@ public class HaConnectionProxy implements InvocationHandler {
 
         assert addrs != null;
         assert addrs.length > 0;
-        //assert retryStrategy != null;
 
         this.delegateConnection = target;
         this.addresses = addrs;
         this.executor = executor;
         this.factory = factory;
-        //this.retryStrategy = retryStrategy;
-        reconnectLock = new ReentrantReadWriteLock();
+        reconnectLock = new ReentrantLock();
 
         //this must be a concurrent collection because other threads may remove from it
         //when a channel is closed
@@ -58,68 +56,62 @@ public class HaConnectionProxy implements InvocationHandler {
     }
 	
 	/**
-	 * Refreshes the underlying connection
+	 * Refreshes the underlying connection. All channel threads will come here until we reconnect. After that, we 
+	 * let the threads go but they will all bail out on the connectionId comparison check.
+	 * 
+	 * @param currentConnectionId the connectionId as the channel saw it when it decided it needed to reconnect
 	 */
 	public void reconnect(long currentConnectionId) {
-		if(true) {
-			reconnectLock.writeLock().lock();			
+		reconnectLock.lock();			
+		try {
+			/*
+			 * This will stop late comers from reconnecting
+			 */
+			if(currentConnectionId < connectionId) {
+				log.warn("Hit race condition on reconnect. I will not attempt the reconnect.");
+				return;
+			}
+
 			try {
-				/*
-				 * This will stop late comers from reconnecting
-				 */
-				if(currentConnectionId < connectionId) {
-					log.warn("Hit race condition on reconnect. I will not attempt the reconnect.");
+				if(this.delegateConnection.isOpen())
+					this.delegateConnection.close(1000);
+			} catch (Exception e) {
+				log.warn("An error ocurred while trying to close the existing connection delegate", e);
+			}
+
+			Exception reconnectException = null;
+			int tryNumber = 0;
+			do {
+
+				try {
+					Thread.sleep(1500); //wait a little before attempting the reconnection
+				} catch (InterruptedException e) {
+					log.warn("Reconnect process was interrupted");
+					Thread.currentThread().interrupt();
 					return;
 				}
-				closeChannelLatches();
+
 				try {
-					if(this.delegateConnection.isOpen())
-						this.delegateConnection.close(1000);
+					//we have this loop so we don't call reconnectChannels() without ensuring
+					//our connection is valid
+					Connection connection = this.factory.newDelegateConnection(executor, addresses);
+					this.delegateConnection = connection;
+					this.connectionId++;
+					applyConnectionShutdownListener();
+					reconnectChannels();
 				} catch (Exception e) {
-					log.warn("An error ocurred while trying to close the existing connection delegate", e);
+					log.error("Unable to reconnect... I will try again", e);
+					reconnectException = e;
 				}
-				
-				Exception reconnectException = null;
-				int tryNumber = 0;
-				do {
-					
-					try {
-						Thread.sleep(1500); //wait a little before attempting the reconnection
-					} catch (InterruptedException e) {
-						log.warn("Reconnect process was interrupted");
-						Thread.currentThread().interrupt();
-						return;
-					}
-					
-					try {
-						//we have this loop so we don't call reconnectChannels() without ensuring
-						//our connection is valid
-						Connection connection = this.factory.newDelegateConnection(executor, addresses);
-						this.delegateConnection = connection;
-						this.connectionId++;
-						applyConnectionShutdownListener();
-						reconnectChannels();
-					} catch (Exception e) {
-						log.error("Unable to reconnect... I will try again", e);
-						reconnectException = e;
-					}
-				
-				} while (++tryNumber < MAX_RECONNECT_TRIES && (!this.delegateConnection.isOpen() || (reconnectException != null && HaUtils.shouldReconnect(reconnectException))));
-				
-				if(tryNumber == MAX_RECONNECT_TRIES) {
-					log.error("Max reconnect tries exceeded!");
-				}
-				
-			} finally {
-				try {
-					//ensure we don't leave the channel latches closed even if something
-					//goes wrong.. opening the latches will allow us to try again
-					openChannelLatches();
-				} finally {
-					reconnectLock.writeLock().unlock();
-				}
-				
+
+			} while (++tryNumber < MAX_RECONNECT_TRIES && (!this.delegateConnection.isOpen() || (reconnectException != null && HaUtils.shouldReconnect(reconnectException))));
+
+			if(tryNumber == MAX_RECONNECT_TRIES) {
+				log.error("Max reconnect tries exceeded!");
 			}
+
+		} finally {
+			reconnectLock.unlock();
 		}
 	}
 	
@@ -132,18 +124,6 @@ public class HaConnectionProxy implements InvocationHandler {
 				}
 			}
 		});
-	}
-	
-	private void closeChannelLatches() {
-		for(HaChannelProxy channel : haChannels) {
-			channel.closeLatch();
-		}
-	}
-	
-	private void openChannelLatches() {
-		for(HaChannelProxy channel : haChannels) {
-			channel.openLatch();
-		}
 	}
 	
 	private void reconnectChannels() throws IOException {
@@ -193,7 +173,7 @@ public class HaConnectionProxy implements InvocationHandler {
     }
 	
 	static {
-        // initialize cache for these methods
+        // initialize cache for these methods so we don't have to do a lot of reflection
         try {
             CREATE_CHANNEL_METHOD = Connection.class.getMethod("createChannel");
             CREATE_CHANNEL_INT_METHOD = Connection.class.getMethod("createChannel", int.class);

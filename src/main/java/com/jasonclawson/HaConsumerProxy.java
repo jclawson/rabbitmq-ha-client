@@ -61,12 +61,10 @@ public class HaConsumerProxy implements Consumer {
 				throw new RuntimeException(e);
 			}
 		} else {
+			//TODO: is it ok to skip the shutdownSignal???
 			//delegateConsumer.handleShutdownSignal(consumerTag, sig);
 		}
 	}
-	
-	
-	//all delegate methods ----------------------
 	
 	public void handleConsumeOk(String consumerTag) {
 		delegateConsumer.handleConsumeOk(consumerTag);
