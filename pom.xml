@@ -4,6 +4,11 @@
 	<groupId>com.jasonclawson</groupId>
 	<artifactId>rabbitmq-ha-client</artifactId>
 	<version>0.6.0-SNAPSHOT</version>
+	<name>RabbitMQ High Availability Client</name>
+	<url>https://github.com/jclawson/rabbitmq-ha-client/</url>
+	<description>RabbitMQ High Availability Client provides auto-reconnect 
+	functionality and call replay for RabbitMQ which takes the burden off of
+	your client code.</description>
 
 	<properties>
 		<maven.compiler.source>1.6</maven.compiler.source>
