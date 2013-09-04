@@ -184,6 +184,16 @@ public class HaChannelProxy implements InvocationHandler {
 		
 	}
 
+	/*
+	 * This method was taken from Josh Devins rabbitmq-ha-client
+	 * -----------------------------------------------------------
+	 * Copyright 2010 Josh Devins
+	 * 
+	 * Licensed under the Apache License, Version 2.0
+	 * 
+	 * http://www.apache.org/licenses/LICENSE-2.0
+	 * 
+	 */
 	private void adjustArgsIfBasicConsume(Object proxy, Method method, Object[] args) {
 		if (method.getName().equals(BASIC_CONSUME_METHOD_NAME)) {
 			// Consumer is always the last argument, let it fail if not
