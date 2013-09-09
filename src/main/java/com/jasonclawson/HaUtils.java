@@ -4,6 +4,7 @@ package com.jasonclawson;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.ConnectException;
 
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.ShutdownSignalException;
@@ -15,6 +16,11 @@ public final class HaUtils {
     public static boolean shouldReconnect(Throwable e) {
     	if(e == null)
     		return false;
+    	
+    	if(e instanceof ConnectException) {
+    		//rabbit server is not up
+    		return true;
+    	}
     	
     	if(e instanceof ShutdownSignalException) {
     		/*
