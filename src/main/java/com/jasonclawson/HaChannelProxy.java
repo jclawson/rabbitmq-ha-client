@@ -169,7 +169,8 @@ public class HaChannelProxy implements InvocationHandler {
 				if(result == null 
 						&& !RETRYABLE_METHOD_NAMES.contains(method.getName())
 						&& method.getReturnType() != null
-						&& method.getReturnType().isPrimitive()) {
+						&& method.getReturnType().isPrimitive()
+						&& method.getReturnType() != void.class) {
 					throw new IOException("Tried to execute non-retryable method "+method.getName()+", but we reconnected.");
 				}
 				
