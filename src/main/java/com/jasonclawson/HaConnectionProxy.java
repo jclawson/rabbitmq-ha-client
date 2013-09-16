@@ -28,16 +28,16 @@ public class HaConnectionProxy implements InvocationHandler {
 	private final ReentrantLock reconnectLock;
 	private final HaConnectionFactory factory;
 	private final ExecutorService executor;
+	private final long reconnectDelay;
+	private final long maxReconnectTries;
 	
 	@Getter
 	private volatile long connectionId = 1;
 	
-	public static final int MAX_RECONNECT_TRIES = 100;
-	
 	private static Method CREATE_CHANNEL_METHOD;
     private static Method CREATE_CHANNEL_INT_METHOD;
 	
-	public HaConnectionProxy(HaConnectionFactory factory, ExecutorService executor, final Address[] addrs, final Connection target) {
+	public HaConnectionProxy(HaConnectionFactory factory, ExecutorService executor, final Address[] addrs, final Connection target, long reconnectDelay, long maxReconnectTries) {
 
         assert addrs != null;
         assert addrs.length > 0;
@@ -46,6 +46,8 @@ public class HaConnectionProxy implements InvocationHandler {
         this.addresses = addrs;
         this.executor = executor;
         this.factory = factory;
+        this.maxReconnectTries = maxReconnectTries;
+        this.reconnectDelay = reconnectDelay;
         reconnectLock = new ReentrantLock();
 
         //this must be a concurrent collection because other threads may remove from it
@@ -60,8 +62,9 @@ public class HaConnectionProxy implements InvocationHandler {
 	 * let the threads go but they will all bail out on the connectionId comparison check.
 	 * 
 	 * @param currentConnectionId the connectionId as the channel saw it when it decided it needed to reconnect
+	 * @throws InterruptedException 
 	 */
-	public void reconnect(long currentConnectionId) {
+	public void reconnect(long currentConnectionId) throws InterruptedException {
 		reconnectLock.lock();			
 		try {
 			/*
@@ -83,13 +86,11 @@ public class HaConnectionProxy implements InvocationHandler {
 			int tryNumber = 0;
 			do {
 
-				try {
-					Thread.sleep(1500); //wait a little before attempting the reconnection
-				} catch (InterruptedException e) {
-					log.warn("Reconnect process was interrupted");
-					Thread.currentThread().interrupt();
-					return;
+				if(Thread.interrupted()) {
+					throw new InterruptedException("Connection reconnect process interrupted after "+tryNumber+" tries");
 				}
+				
+				Thread.sleep(reconnectDelay); //wait a little before attempting the reconnection
 
 				try {
 					//we have this loop so we don't call reconnectChannels() without ensuring
@@ -104,9 +105,9 @@ public class HaConnectionProxy implements InvocationHandler {
 					reconnectException = e;
 				}
 
-			} while (++tryNumber < MAX_RECONNECT_TRIES && (!this.delegateConnection.isOpen() || (reconnectException != null && HaUtils.shouldReconnect(reconnectException))));
+			} while (++tryNumber < maxReconnectTries && (!this.delegateConnection.isOpen() || (reconnectException != null && HaUtils.shouldReconnect(reconnectException))));
 
-			if(tryNumber == MAX_RECONNECT_TRIES) {
+			if(tryNumber == maxReconnectTries) {
 				log.error("Max reconnect tries exceeded!");
 			}
 
@@ -120,7 +121,12 @@ public class HaConnectionProxy implements InvocationHandler {
 			@Override
 			public void shutdownCompleted(ShutdownSignalException cause) {
 				if(HaUtils.shouldReconnect(cause)) {
-					reconnect(connectionId);
+					try {
+						reconnect(connectionId);
+					} catch (InterruptedException e) {
+						log.warn("Shutdown listener reconnect interrupted");
+						Thread.currentThread().interrupt();
+					}
 				}
 			}
 		});

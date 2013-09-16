@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.concurrent.ExecutorService;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.rabbitmq.client.Address;
@@ -12,6 +14,14 @@ import com.rabbitmq.client.ConnectionFactory;
 
 @Slf4j
 public class HaConnectionFactory extends ConnectionFactory {
+	
+	@Getter
+	@Setter
+	private long reconnectDelay = 1500;
+	
+	@Getter
+	@Setter
+	private long maxReconnectTries = 5000;
 	
 	public HaConnectionFactory() {
 		
@@ -22,7 +32,7 @@ public class HaConnectionFactory extends ConnectionFactory {
         ClassLoader classLoader = Connection.class.getClassLoader();
         Class<?>[] interfaces = { Connection.class };
 
-        HaConnectionProxy proxy = new HaConnectionProxy(this, executor, addrs, targetConnection);
+        HaConnectionProxy proxy = new HaConnectionProxy(this, executor, addrs, targetConnection, reconnectDelay, maxReconnectTries);
 
         if (log.isDebugEnabled()) {
             log.debug("Creating connection proxy: "
@@ -39,13 +49,35 @@ public class HaConnectionFactory extends ConnectionFactory {
 	@Override
     public Connection newConnection(ExecutorService executor, Address[] addrs) throws IOException {
 		Connection target = null;
-		try {
-        	target = newDelegateConnection(executor, addrs);
-        } catch (IOException e) {
-        	if(!HaUtils.shouldReconnect(e)) {
-        		throw e;
-        	}
-        }
+		int tries = 0;
+		while(target == null && tries++ < maxReconnectTries) {
+			try {
+				if(Thread.interrupted()) {
+					Thread.currentThread().interrupt();
+					throw new InterruptedException("Connection process interrupted after "+tries+" tries");
+				}
+	        	target = newDelegateConnection(executor, addrs);
+	        } catch (Exception e) {
+	        	if(e instanceof IOException && !HaUtils.shouldReconnect(e)) {
+	        		throw (IOException)e;
+	        	} else if (! (e instanceof IOException)) {
+	        		throw new IOException("Unable to connect to RabbitMQ", e);
+	        	}
+	        	
+	        	try {
+					Thread.sleep(reconnectDelay);
+				} catch (InterruptedException e1) {
+					Thread.currentThread().interrupt();
+					throw new RuntimeException("Connect process was interrupted");
+				}
+	        	log.warn("Unable to connect to RabbitMQ... trying again...");
+	        }
+		}
+		
+		if(target == null) {
+			throw new RuntimeException("Unable to connect to RabbitMQ. Gave up after "+tries+" tries.");
+		}
+		
         return createConnectionProxyInstance(executor, addrs, target);
     }
 	
