@@ -1,15 +1,11 @@
-package com.jasonclawson;
+package com.jasonclawson.rabbitmq.ha;
 
 import java.io.IOException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.ConsumerCancelledException;
-import com.rabbitmq.client.DefaultConsumer;
-import com.rabbitmq.client.Envelope;
-import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.utility.Utility;
 
@@ -20,13 +16,13 @@ import com.rabbitmq.utility.Utility;
  * @author jclawson
  *
  */
-public class HaQueuingConsumer extends DefaultConsumer {
+public class HaQueuingConsumer extends DefaultHaConsumer {
 
-	private final LinkedBlockingQueue<Delivery> queue = new LinkedBlockingQueue<Delivery>();
+	private final LinkedBlockingQueue<HaDelivery> queue = new LinkedBlockingQueue<HaDelivery>();
 	private volatile ShutdownSignalException shutdown;
 	private volatile ConsumerCancelledException cancelled;
 
-	public HaQueuingConsumer(Channel channel) {
+	public HaQueuingConsumer(HaChannel channel) {
 		super(channel);
 	}
 
@@ -36,10 +32,10 @@ public class HaQueuingConsumer extends DefaultConsumer {
 	}
 
 	@Override
-	public void handleDelivery(String consumerTag, Envelope envelope,
+	public void handleDelivery(String consumerTag, HaEnvelope envelope,
 			AMQP.BasicProperties properties, byte[] body) throws IOException {
 		checkShutdown();
-		this.queue.add(new Delivery(envelope, properties, body));
+		this.queue.add(new HaDelivery(envelope, properties, body));
 	}
 
 	@Override
@@ -52,7 +48,7 @@ public class HaQueuingConsumer extends DefaultConsumer {
             throw Utility.fixStackTrace(shutdown);
     }
 	
-	private Delivery handle(Delivery delivery) {
+	private HaDelivery handle(HaDelivery delivery) {
         if(shutdown != null || cancelled != null) {
 	        if (null != shutdown)
 	            throw Utility.fixStackTrace(shutdown);
@@ -69,7 +65,7 @@ public class HaQueuingConsumer extends DefaultConsumer {
      * @throws ShutdownSignalException if the connection is shut down while waiting
      * @throws ConsumerCancelledException if this consumer is cancelled while waiting
      */
-    public Delivery nextDelivery()
+    public HaDelivery nextDelivery()
         throws InterruptedException, ShutdownSignalException, ConsumerCancelledException
     {
         return handle(queue.take());
@@ -83,7 +79,7 @@ public class HaQueuingConsumer extends DefaultConsumer {
      * @throws ShutdownSignalException if the connection is shut down while waiting
      * @throws ConsumerCancelledException if this consumer is cancelled while waiting
      */
-    public Delivery nextDelivery(long timeout)
+    public HaDelivery nextDelivery(long timeout)
         throws InterruptedException, ShutdownSignalException, ConsumerCancelledException
     {
         return handle(queue.poll(timeout, TimeUnit.MILLISECONDS));

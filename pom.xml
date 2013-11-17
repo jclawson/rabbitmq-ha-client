@@ -1,9 +1,10 @@
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.jasonclawson</groupId>
 	<artifactId>rabbitmq-ha-client</artifactId>
-	<version>0.5.3-SNAPSHOT</version>
+	<version>1.0.0-SNAPSHOT</version>
 	<name>RabbitMQ High Availability Client</name>
 	<url>https://github.com/jclawson/rabbitmq-ha-client/</url>
 	<description>RabbitMQ High Availability Client provides auto-reconnect 
@@ -20,7 +21,7 @@
 		<developerConnection>scm:git:git@github.com:jclawson/hazeltask.git</developerConnection>
 		<url>https://github.com/jclawson/hazeltask/</url>
 	</scm>
-	
+
 	<developers>
 		<developer>
 			<id>jclawson</id>
@@ -29,7 +30,7 @@
 			<timezone>-7</timezone>
 		</developer>
 	</developers>
-	
+
 	<licenses>
 		<license>
 			<name>GNU LESSER GENERAL PUBLIC LICENSE VERSION 3</name>
@@ -37,12 +38,12 @@
 			<distribution>repo</distribution>
 		</license>
 	</licenses>
-	
+
 	<issueManagement>
 		<system>github</system>
 		<url>https://github.com/jclawson/hazeltask/issues</url>
 	</issueManagement>
-	
+
 	<distributionManagement>
 		<snapshotRepository>
 			<id>sonatype-nexus-snapshots</id>
@@ -55,7 +56,8 @@
 			<url>http://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
 		</repository>
 	</distributionManagement>
-	
+
+
 	<repositories>
 		<repository>
 			<id>sonatype-nexus-public</id>
@@ -91,10 +93,10 @@
 		</dependency>
 
 	</dependencies>
-	
+
 	<build>
 		<plugins>
-			
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -138,7 +140,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-gpg-plugin</artifactId>
@@ -154,5 +156,5 @@
 			</plugin>
 		</plugins>
 	</build>
-	
+
 </project>

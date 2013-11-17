@@ -1,5 +1,5 @@
 
-package com.jasonclawson;
+package com.jasonclawson.rabbitmq.ha;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -43,8 +43,8 @@ public final class HaUtils {
     		 * If we didn't initiate the shutdown, or we encounter a connection error... we should reconnect
     		 * isHardError returns true if it was a connection error... false if a channel error
     		 */
-    		return !((ShutdownSignalException) e).isInitiatedByApplication()
-    			|| ((ShutdownSignalException)e).isHardError();
+    		return !((ShutdownSignalException) e).isInitiatedByApplication();
+    			/*((ShutdownSignalException)e).isHardError()*/
     	}
     	
     	if(e instanceof ConsumerCancelledException) {

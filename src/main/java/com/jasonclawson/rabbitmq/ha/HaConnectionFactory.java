@@ -1,9 +1,9 @@
-package com.jasonclawson;
+package com.jasonclawson.rabbitmq.ha;
 
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.util.concurrent.ExecutorService;
 
+import lombok.Delegate;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -13,7 +13,7 @@ import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 
 @Slf4j
-public class HaConnectionFactory extends ConnectionFactory {
+public class HaConnectionFactory {
 	
 	@Getter
 	@Setter
@@ -23,31 +23,23 @@ public class HaConnectionFactory extends ConnectionFactory {
 	@Setter
 	private long maxReconnectTries = 5000;
 	
+	@Delegate(excludes=HaConnectionFactoryPruned.class)
+	private final ConnectionFactory delegate;
+	
 	public HaConnectionFactory() {
-		
+		delegate = new ConnectionFactory();
 	}
 	
-	protected Connection createConnectionProxyInstance(ExecutorService executor, final Address[] addrs, final Connection targetConnection) {
-
-        ClassLoader classLoader = Connection.class.getClassLoader();
-        Class<?>[] interfaces = { Connection.class };
-
-        HaConnectionProxy proxy = new HaConnectionProxy(this, executor, addrs, targetConnection, reconnectDelay, maxReconnectTries);
-
-        if (log.isDebugEnabled()) {
-            log.debug("Creating connection proxy: "
-                            + (targetConnection == null ? "none" : targetConnection.toString()));
-        }
-
-        return (Connection) Proxy.newProxyInstance(classLoader, interfaces, proxy);
+	protected HaConnection createConnectionProxyInstance(ExecutorService executor, final Address[] addrs, final Connection targetConnection) {      
+        ReconnectionFactory factory = new ReconnectionFactory(this, executor, addrs);
+        return new HaConnection(factory, targetConnection, reconnectDelay, maxReconnectTries);
     }
 	
 	protected Connection newDelegateConnection(ExecutorService executor, Address[] addrs) throws IOException {
-		return super.newConnection(executor, addrs);
+		return delegate.newConnection(executor, addrs);
 	}
 	
-	@Override
-    public Connection newConnection(ExecutorService executor, Address[] addrs) throws IOException {
+	public HaConnection newConnection(ExecutorService executor, Address[] addrs) throws IOException {
 		Connection target = null;
 		int tries = 0;
 		while(target == null && tries++ < maxReconnectTries) {
@@ -81,22 +73,15 @@ public class HaConnectionFactory extends ConnectionFactory {
         return createConnectionProxyInstance(executor, addrs, target);
     }
 	
-
-	@Override
-	public Connection newConnection(Address[] addrs) throws IOException {
+	public HaConnection newConnection(Address[] addrs) throws IOException {
 		return this.newConnection(null, addrs);
 	}
 
-	@Override
-	public Connection newConnection() throws IOException {
+	public HaConnection newConnection() throws IOException {
 		return this.newConnection(null, null);
 	}
 
-	@Override
-	public Connection newConnection(ExecutorService executor) throws IOException {
+	public HaConnection newConnection(ExecutorService executor) throws IOException {
 		return this.newConnection(executor, null);
-	}
-	
-	
-	
+	}	
 }
