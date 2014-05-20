@@ -28,10 +28,12 @@ public class HaChannelImpl implements HaChannel {
 	}
 	
 	protected void refreshChannelDelegate(Channel channelDelegate) {
-    	if(this.channelDelegate.isOpen()) {
+		if(this.channelDelegate.isOpen()) {
 			try {
-				log.info("Reconnecting. Current channel is still open, closing.");
-				this.channelDelegate.close();
+				log.info("Reconnecting. Current channel appears to be open... but I will not close it because of a possible deadlock bug in the RabbitClient");
+				//This can cause a deadlock in the RabbitMQ client when the client does a blocking call
+				//to a server that is down. It waits forever and is uninterruptable
+				//this.channelDelegate.close();
 			} catch (Exception e) {
 				log.warn("Unable to close delegate channel", e);
 			}
@@ -50,13 +52,8 @@ public class HaChannelImpl implements HaChannel {
 	 */
 	@Override
 	public void basicAck(DeliveryTag deliveryTag, boolean multiple) throws IOException {
-		log.info("Calling basicAck for {}", deliveryTag);
-		try {
-			this.assertValidOperationForChannel(deliveryTag, "basicAck");
-		} catch (Exception e) {
-			System.out.println("+++++++++++++++++++++++++");
-			return;
-		}
+		log.debug("Calling basicAck for {}", deliveryTag);
+		this.assertValidOperationForChannel(deliveryTag, "basicAck");
 		channelDelegate.basicAck(deliveryTag.getDeliveryTag(), multiple);
 	}
 
@@ -65,6 +62,7 @@ public class HaChannelImpl implements HaChannel {
 	 */
 	@Override
 	public void basicNack(DeliveryTag deliveryTag, boolean multiple, boolean requeue) throws IOException {
+		log.debug("Calling basicNack for {}", deliveryTag);
 		this.assertValidOperationForChannel(deliveryTag, "basicNack");
 		channelDelegate.basicNack(deliveryTag.getDeliveryTag(), multiple, requeue);
 	}
@@ -75,6 +73,7 @@ public class HaChannelImpl implements HaChannel {
 	@Override
 	public void basicReject(DeliveryTag deliveryTag, boolean requeue)
 			throws IOException {
+		log.debug("Calling basicReject for {}", deliveryTag);
 		this.assertValidOperationForChannel(deliveryTag, "basicReject");
 		channelDelegate.basicReject(deliveryTag.getDeliveryTag(), requeue);
 	}

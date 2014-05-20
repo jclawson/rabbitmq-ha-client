@@ -8,7 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
+import lombok.AccessLevel;
 import lombok.Delegate;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import com.rabbitmq.client.Channel;
@@ -25,6 +27,7 @@ public class HaConnection {
 	private AtomicInteger reconnectionState = new AtomicInteger(CONNECTED);
 	
 	@Delegate(excludes=PrunedConnection.class)
+	@Getter(AccessLevel.PUBLIC)
 	private Connection delegateConnection;
 	
 	private final Set<HaChannelProxy> haChannels;
