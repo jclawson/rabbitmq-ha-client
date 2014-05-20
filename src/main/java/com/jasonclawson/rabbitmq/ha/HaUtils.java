@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.net.ConnectException;
 
 import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.AlreadyClosedException;
 import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.ShutdownSignalException;
 import com.rabbitmq.client.impl.AMQCommand;
@@ -22,6 +23,11 @@ public final class HaUtils {
     	
     	if(e instanceof ConnectException) {
     		//rabbit server is not up
+    		return true;
+    	}
+    	
+    	if(e instanceof AlreadyClosedException){
+    		//this is because the channel might have closed. so try reconnecting again.
     		return true;
     	}
     	

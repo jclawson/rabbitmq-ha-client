@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.ShutdownSignalException;
 
 /**

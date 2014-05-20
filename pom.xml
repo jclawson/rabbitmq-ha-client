@@ -4,12 +4,18 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.jasonclawson</groupId>
 	<artifactId>rabbitmq-ha-client</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.1.2-SNAPSHOT</version>
 	<name>RabbitMQ High Availability Client</name>
 	<url>https://github.com/jclawson/rabbitmq-ha-client/</url>
 	<description>RabbitMQ High Availability Client provides auto-reconnect 
 	functionality and call replay for RabbitMQ which takes the burden off of
 	your client code.</description>
+
+	<parent>
+		<groupId>com.qualys</groupId>
+		<artifactId>qualys-parent</artifactId>
+		<version>1.2.0</version>
+	</parent>
 
 	<properties>
 		<maven.compiler.source>1.6</maven.compiler.source>
@@ -44,7 +50,7 @@
 		<url>https://github.com/jclawson/hazeltask/issues</url>
 	</issueManagement>
 
-	<distributionManagement>
+	<!-- <distributionManagement>
 		<snapshotRepository>
 			<id>sonatype-nexus-snapshots</id>
 			<name>Sonatype Nexus Snapshots</name>
@@ -70,7 +76,7 @@
 				<enabled>true</enabled>
 			</snapshots>
 		</repository>
-	</repositories>
+	</repositories> -->
 
 	<dependencies>
 		<dependency>
@@ -83,7 +89,7 @@
 		<dependency>
 			<groupId>com.rabbitmq</groupId>
 			<artifactId>amqp-client</artifactId>
-			<version>3.1.4</version>
+			<version>3.2.3</version>
 		</dependency>
 
 		<dependency>
